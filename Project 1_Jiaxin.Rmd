@@ -1,0 +1,115 @@
+---
+title: "Data 607 Project 1"
+author: "Jiaxin Zheng"
+date: "2024-10-09"
+output:
+  pdf_document: default
+  html_document: default
+---
+Introduction:
+
+In this project we take chess tournament results text file into a .csv file. Player’s Name, Player’s State, Total Number of Points, Player’s Pre-Rating, and Average Pre Chess Rating of Opponents
+For the first player, the information would be:
+Gary Hua, ON, 6.0, 1794, 1605
+
+
+Data Cleaning Strategy:
+1. read the data from text file
+2. removing all the |’s , -’s and NA columns
+3. separate the rows into more clean and combine as a readable data table
+4. separate the  USCF ID / Rtg (Pre->Post)
+5. Calculating the opposing player rating
+
+
+```{r loading the package}
+library(tidyverse)
+```
+
+```{r load the tournament data}
+
+url <- "https://raw.githubusercontent.com/Jennyjjxxzz/Data-607_Project1/refs/heads/main/tournamentinfo.txt.txt"
+tournament <- read.delim(url, header = FALSE, sep = "\n")
+
+```
+
+```{r read the data}
+str(tournament)
+head(tournament)
+```
+```{r clean and filter the data}
+
+cols <- c('player_num','name','total_pts','round_1','round_2','round_3','round_4',
+          'round_5','round_6','round_7','NA')
+```
+
+```{r remove the dashes and "|"}
+
+df_tournament <- read.csv(url, sep="|", header = FALSE, skip = 3, col.names = cols)
+dashes <- "-----------------------------------------------------------------------------------------"
+df_tournament <- df_tournament %>% filter(player_num != dashes)
+
+```
+
+
+```{r separate the rows into more clean and combine as a readable data table}
+df1 <- df_tournament %>%
+  filter(row_number() %% 2 == 1)
+
+```
+
+```{r}
+df2 <- df_tournament%>%
+  filter(row_number() %% 2 != 1)
+```
+
+```{r combine the two dataframes and remove the NA columns}
+
+combine_df<- cbind(df1, df2)
+head(combine_df)
+
+```
+```{r clean the data, and rename}
+
+combine_df<- combine_df %>%
+  subset(select=c(1:10, 12:13))
+
+colnames(combine_df)<- c("Player_num", "Name", "Total_Points", "Round1", "Round2", "Round3", "Round4", "Round5", "Round6", "Round7", "State", "Opponent_Info")
+view(combine_df)
+
+```
+
+
+```{r Extract the Pre-Rating and extract the Post-Rating}
+combine_df <- combine_df %>%
+  mutate(Pre_Rating = str_extract(Opponent_Info, "(?<=R: )\\d+"),  # Extract the Pre-Rating
+         Post_Rating = str_extract(Opponent_Info, "(?<=->)\\d+"))  # Extract the Post-Rating
+
+
+combine_df <- combine_df %>%
+  rowwise() %>%
+  mutate(Average_Opponent_Rating = mean(as.numeric(c(str_extract(Round1, "(?<=R: )\\d+"),
+                                                     str_extract(Round2, "(?<=R: )\\d+"),
+                                                     str_extract(Round3, "(?<=R: )\\d+"),
+                                                     str_extract(Round4, "(?<=R: )\\d+"),
+                                                     str_extract(Round5, "(?<=R: )\\d+"),
+                                                     str_extract(Round6, "(?<=R: )\\d+"),
+                                                     str_extract(Round7, "(?<=R: )\\d+"))), na.rm = TRUE))
+
+#columns for the cleaned dataframe
+final_df <- combine_df %>%
+  select(Name, State, Total_Points, Pre_Rating, Average_Opponent_Rating)
+
+view(final_df)
+head(final_df)
+
+```
+
+```{r}
+write.csv(final_df, "tournament_cleaned.csv", row.names = FALSE)
+```
+
+
+
+
+
+
